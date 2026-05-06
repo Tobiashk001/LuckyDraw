@@ -368,6 +368,49 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   // --- fileParser ---
 // File parser module - parses Excel files and extracts Staff_Entry records
 
+/**
+ * Reads a File as an ArrayBuffer.
+ * Uses the modern file.arrayBuffer() API with FileReader as fallback.
+ * @param {File} file
+ * @returns {Promise<ArrayBuffer>}
+ */
+function readFileAsArrayBuffer(file) {
+  // Modern API
+  if (typeof file.arrayBuffer === 'function') {
+    return file.arrayBuffer();
+  }
+  // Fallback for older browsers
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+/**
+ * Checks whether the first row looks like a header row.
+ * A row is considered a header if either cell value matches common header labels.
+ * @param {*} cellA - Value from column A
+ * @param {*} cellB - Value from column B
+ * @returns {boolean}
+ */
+function isHeaderRow(cellA, cellB) {
+  if (cellA == null || cellB == null) return false;
+  const a = String(cellA).trim().toLowerCase();
+  const b = String(cellB).trim().toLowerCase();
+  const headerPatterns = [
+    'staff_id', 'staffid', 'staff id', 'id', 'employee_id', 'employee id', 'emp_id',
+    'nominator', 'nominated_by', 'nominated by', 'name', 'nominee',
+  ];
+  return headerPatterns.includes(a) || headerPatterns.includes(b);
+}
+
+/**
+ * Loads the SheetJS library. Uses the global XLSX if available and functional (browser with CDN),
+ * otherwise dynamically imports the 'xlsx' package (Node/tests).
+ * @returns {Promise<object>}
+ */
 
 
 /**
