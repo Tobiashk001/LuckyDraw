@@ -478,7 +478,8 @@ function extractEntries(XLSX, workbook) {
  *
  * @param {File} file - The uploaded file object
  * @returns {Promise<{success: boolean, entries: Array<{staffId: string, nominator: string}>, error?: string}>}
- */async function parseExcelFile(file) {
+ */
+async function parseExcelFile(file) {
   // Validate file extension - be more lenient and add debug logging
   const name = file.name || '';
   console.log('parseExcelFile - File name:', name);
@@ -521,7 +522,8 @@ function extractEntries(XLSX, workbook) {
  * @param {ArrayBuffer|Uint8Array} data - The Excel file data
  * @param {string} filename - The filename (used for extension validation)
  * @returns {Promise<{success: boolean, entries: Array<{staffId: string, nominator: string}>, error?: string}>}
- */async function parseExcelBuffer(data, filename) {
+ */
+async function parseExcelBuffer(data, filename) {
   const ext = filename.substring(filename.lastIndexOf('.')).toLowerCase();
   if (ext !== '.xlsx' && ext !== '.xls') {
     return {
@@ -568,7 +570,8 @@ function extractEntries(XLSX, workbook) {
 /**
  * Creates a new DrawEngine instance.
  * @returns {import('./drawEngine.js').DrawEngine}
- */function createDrawEngine() {
+ */
+function createDrawEngine() {
   /** @type {StaffEntry[]} All staff entries */
   let staffEntries = [];
 
@@ -631,6 +634,43 @@ function extractEntries(XLSX, workbook) {
     },
 
     /**
+     * Randomly selects multiple staff entries whose staffId hasn't been drawn yet.
+     * Returns an array of WinnerEntry or empty array if all unique staff have been drawn.
+     * @param {number} count - Number of winners to draw
+     * @returns {WinnerEntry[]}
+     */
+    drawWinners(count) {
+      const winners = [];
+      
+      for (let i = 0; i < count; i++) {
+        // Build eligible pool: entries whose staffId hasn't been drawn
+        const eligible = staffEntries.filter(e => !drawnStaffIds.has(e.staffId));
+
+        if (eligible.length === 0) {
+          break;
+        }
+
+        // Pick a random entry from eligible pool
+        const randomIndex = Math.floor(Math.random() * eligible.length);
+        const entry = eligible[randomIndex];
+
+        // Create WinnerEntry with next draw number
+        const winner = {
+          drawNumber: winnerList.length + 1,
+          staffId: entry.staffId,
+          nominator: entry.nominator,
+        };
+
+        // Track staffId as drawn and add to winner list
+        drawnStaffIds.add(entry.staffId);
+        winnerList.push(winner);
+        winners.push(winner);
+      }
+
+      return winners;
+    },
+
+    /**
      * Returns the current Winner_List in draw order.
      * @returns {WinnerEntry[]}
      */
@@ -672,7 +712,8 @@ function extractEntries(XLSX, workbook) {
  *
  * @param {import('./drawEngine.js').WinnerEntry[]} winners
  * @returns {string}
- */function generateExportText(winners) {
+ */
+function generateExportText(winners) {
   const lines = ['Lucky Draw Winners', '=================='];
 
   for (const winner of winners) {
@@ -689,7 +730,8 @@ function extractEntries(XLSX, workbook) {
  *
  * @param {string} content - The text content to download
  * @param {string} filename - The filename for the download
- */function downloadTextFile(content, filename) {
+ */
+function downloadTextFile(content, filename) {
   const blob = new Blob([content], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
 
@@ -713,7 +755,8 @@ function extractEntries(XLSX, workbook) {
  * Creates a new UI instance.
  * Call init() after the DOM is ready to cache element references and set up handlers.
  * @returns {import('.kiro/specs/lucky-draw/design.md').UI}
- */function createUI() {
+ */
+function createUI() {
   // Cached DOM references (populated in init)
   let drawTab;
   let winnersTab;
@@ -1031,18 +1074,21 @@ if (drawBtn) {
         return;
       }
 
-      const winner = engine.drawWinner();
+      // Draw 20 winners at once
+      const winners = engine.drawWinners(20);
 
-      if (!winner) {
-        console.log('No winner drawn - all staff may have been drawn');
+      if (winners.length === 0) {
+        console.log('No winners drawn - all staff may have been drawn');
         ui.showAllDrawnMessage();
         ui.setDrawButtonEnabled(false);
         return;
       }
 
-      console.log(`Winner drawn: ${winner.staffId}, draw #${winner.drawNumber}`);
+      console.log(`${winners.length} winners drawn`);
       
-      ui.showDrawnWinner(winner);
+      // Show the last winner prominently in the draw tab
+      const lastWinner = winners[winners.length - 1];
+      ui.showDrawnWinner(lastWinner);
       ui.renderWinnerList(engine.getWinnerList());
 
       // Enable export since we now have at least one winner
